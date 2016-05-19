@@ -46,10 +46,14 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
 		return
 	}
-	defer tty.Close()
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Process.Wait()
+		tty.Close()
+		conn.Close()
+	}()
 
 	go func() {
-		defer conn.Close()
 		for {
 			buf := make([]byte, 1024)
 			read, err := tty.Read(buf)
@@ -66,7 +70,6 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		messageType, reader, err := conn.NextReader()
 		if err != nil {
 			l.WithError(err).Error("Unable to grab next reader")
-			conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
 			return
 		}
 
